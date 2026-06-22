@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Statistical Analysis App</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+  header { background: linear-gradient(135deg, #1e3a5f, #0d2137); padding: 20px 32px; border-bottom: 1px solid #1e3a5f; }
+  header h1 { font-size: 1.6rem; font-weight: 700; color: #60a5fa; letter-spacing: -0.5px; }
+  header p { color: #94a3b8; font-size: 0.85rem; margin-top: 4px; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+  .card { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+  .card h2 { font-size: 1rem; font-weight: 600; color: #93c5fd; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tab { padding: 8px 18px; border-radius: 8px; border: 1px solid #2d3748; background: transparent; color: #94a3b8; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+  .tab.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .tab:hover:not(.active) { border-color: #4b5563; color: #e2e8f0; }
+  .input-section { display: none; }
+  .input-section.active { display: block; }
+  textarea { width: 100%; background: #0f1117; border: 1px solid #2d3748; border-radius: 8px; color: #e2e8f0; padding: 12px; font-size: 0.9rem; font-family: monospace; resize: vertical; min-height: 120px; outline: none; transition: border-color 0.2s; }
+  textarea:focus { border-color: #2563eb; }
+  .hint { color: #64748b; font-size: 0.78rem; margin-top: 6px; }
+  .col-row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+  .col-row input[type="text"] { flex: 1; background: #0f1117; border: 1px solid #2d3748; border-radius: 6px; color: #e2e8f0; padding: 8px 12px; font-size: 0.9rem; outline: none; max-width: 150px; }
+  .col-row input:focus { border-color: #2563eb; }
+  .col-row textarea { min-height: 60px; }
+  button.primary { background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 10px 24px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; font-weight: 600; }
+  button.primary:hover { background: #1d4ed8; }
+  button.secondary { background: #1e3a5f; color: #93c5fd; border: 1px solid #2d3748; border-radius: 8px; padding: 8px 16px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+  button.secondary:hover { background: #2d3748; }
+  .actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+  #results { display: none; }
+  .col-results { margin-bottom: 28px; }
+  .col-results h3 { font-size: 1.1rem; color: #60a5fa; margin-bottom: 14px; border-bottom: 1px solid #2d3748; padding-bottom: 8px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .stat-box { background: #0f1117; border: 1px solid #2d3748; border-radius: 8px; padding: 12px 14px; }
+  .stat-box .label { font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .stat-box .value { font-size: 1.15rem; font-weight: 700; color: #e2e8f0; }
+  .stat-box.highlight .value { color: #60a5fa; }
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  @media (max-width: 700px) { .charts-row { grid-template-columns: 1fr; } }
+  .chart-wrap { background: #0f1117; border: 1px solid #2d3748; border-radius: 8px; padding: 16px; position: relative; height: 260px; }
+  .chart-wrap h4 { font-size: 0.8rem; color: #64748b; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .normality-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; margin-left: 8px; }
+  .normal { background: #14532d; color: #4ade80; }
+  .not-normal { background: #450a0a; color: #f87171; }
+  .outlier-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .outlier-tag { background: #431407; border: 1px solid #c2410c; color: #fb923c; border-radius: 4px; padding: 2px 8px; font-size: 0.8rem; font-family: monospace; }
+  .corr-table { overflow-x: auto; margin-top: 8px; }
+  .corr-table table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .corr-table th, .corr-table td { padding: 8px 14px; border: 1px solid #2d3748; text-align: right; }
+  .corr-table th { background: #0f1117; color: #94a3b8; }
+  .corr-table td { font-family: monospace; }
+  .error-box { background: #450a0a; border: 1px solid #991b1b; border-radius: 8px; padding: 12px; color: #fca5a5; font-size: 0.9rem; }
+  #loading { display: none; color: #60a5fa; font-size: 0.9rem; margin-top: 8px; }
+  .sample-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .sample-btns span { color: #64748b; font-size: 0.82rem; align-self: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Statistical Analysis</h1>
+  <p>Descriptive stats, distributions, outlier detection, and correlation</p>
+</header>
+<div class="container">
+  <div class="card">
+    <h2>Data Input</h2>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('simple')">Single Column</button>
+      <button class="tab" onclick="switchTab('multi')">Multiple Columns</button>
+    </div>
+    <div class="sample-btns">
+      <span>Load sample:</span>
+      <button class="secondary" onclick="loadSample('normal')">Normal dist</button>
+      <button class="secondary" onclick="loadSample('skewed')">Skewed</button>
+      <button class="secondary" onclick="loadSample('multi')">Multi-column</button>
+    </div>
+    <div id="tab-simple" class="input-section active">
+      <textarea id="simple-input" placeholder="Enter numbers separated by commas, spaces, or newlines"></textarea>
+      <p class="hint">Column name: &quot;Data&quot; (default)</p>
+    </div>
+    <div id="tab-multi" class="input-section">
+      <div id="col-inputs"></div>
+      <button class="secondary" onclick="addCol()" style="margin-top:8px">+ Add Column</button>
+    </div>
+    <div class="actions">
+      <button class="primary" onclick="runAnalysis()">Analyze</button>
+      <button class="secondary" onclick="clearAll()">Clear</button>
+      <span id="loading">Calculating...</span>
+    </div>
+  </div>
+  <div id="results">
+    <div id="stats-output"></div>
+    <div id="corr-output"></div>
+  </div>
+</div>
+<script>
+let activeTab = 'simple';
+let charts = {};
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', ['simple','multi'][i] === tab));
+  document.querySelectorAll('.input-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+let colCount = 0;
+function addCol(name, vals) {
+  name = name || ''; vals = vals || '';
+  colCount++;
+  const id = 'col-' + colCount;
+  const div = document.createElement('div');
+  div.className = 'col-row'; div.id = id;
+  div.innerHTML = '<input type="text" placeholder="Column name" value="' + name + '"/><textarea placeholder="Values">' + vals + '</textarea><button class="secondary" onclick="document.getElementById(\'' + id + '\').remove()">x</button>';
+  document.getElementById('col-inputs').appendChild(div);
+}
+addCol('A', ''); addCol('B', '');
+function getColumnsFromUI() {
+  if (activeTab === 'simple') return { 'Data': parseValues(document.getElementById('simple-input').value) };
+  const cols = {};
+  document.querySelectorAll('#col-inputs .col-row').forEach(row => {
+    const name = row.querySelector('input[type="text"]').value.trim() || ('Col' + Math.random().toString(36).slice(2,5));
+    const vals = parseValues(row.querySelector('textarea').value);
+    if (vals.length) cols[name] = vals;
+  });
+  return cols;
+}
+function parseValues(raw) { return raw.split(/[\s,;]+/).map(s => s.trim()).filter(s => s !== ''); }
+async function runAnalysis() {
+  const columns = getColumnsFromUI();
+  if (!Object.keys(columns).length) return alert('Please enter some data.');
+  document.getElementById('loading').style.display = 'inline';
+  document.getElementById('results').style.display = 'none';
+  destroyCharts();
+  const [statsRes, corrRes] = await Promise.all([
+    fetch('/analyze', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ columns }) }),
+    Object.keys(columns).length >= 2 ? fetch('/correlate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ columns }) }) : Promise.resolve(null)
+  ]);
+  const statsData = await statsRes.json();
+  const corrData = corrRes ? await corrRes.json() : null;
+  document.getElementById('loading').style.display = 'none';
+  renderStats(statsData);
+  if (corrData && !corrData.error) renderCorr(corrData);
+  else document.getElementById('corr-output').innerHTML = '';
+  document.getElementById('results').style.display = 'block';
+}
+function renderStats(data) {
+  const out = document.getElementById('stats-output'); out.innerHTML = '';
+  for (const [col, s] of Object.entries(data)) {
+    const div = document.createElement('div'); div.className = 'card col-results';
+    if (s.error) { div.innerHTML = '<h3>' + col + '</h3><div class="error-box">' + s.error + '</div>'; out.appendChild(div); continue; }
+    const normalBadge = s.normality ? '<span class="normality-badge ' + (s.normality.p_value > 0.05 ? 'normal' : 'not-normal') + '">' + (s.normality.p_value > 0.05 ? 'Normal' : 'Non-normal') + ' (p=' + s.normality.p_value + ')</span>' : '';
+    const outlierHtml = s.outliers.length ? '<div style="margin-top:12px"><div class="label" style="font-size:0.78rem;color:#64748b;text-transform:uppercase">Outliers (' + s.outliers.length + ')</div><div class="outlier-list">' + s.outliers.map(v => '<span class="outlier-tag">' + v + '</span>').join('') + '</div></div>' : '';
+    div.innerHTML = '<h3>' + col + ' ' + normalBadge + '</h3><div class="stats-grid">' +
+      ['n:Count','mean:Mean','median:Median','mode:Mode','std:Std Dev','variance:Variance','min:Min','max:Max','range:Range','q1:Q1','q3:Q3','iqr:IQR','skewness:Skewness','kurtosis:Kurtosis'].map((f,i) => {
+        const [k,l] = f.split(':');
+        return '<div class="stat-box' + (i<2?' highlight':'') + '"><div class="label">' + l + '</div><div class="value">' + s[k] + '</div></div>';
+      }).join('') + '</div>' + outlierHtml +
+      '<div class="charts-row"><div class="chart-wrap"><h4>Histogram</h4><canvas id="hist-' + col + '"></canvas></div><div class="chart-wrap"><h4>Box Plot</h4><canvas id="box-' + col + '"></canvas></div></div>';
+    out.appendChild(div);
+    setTimeout(() => { renderHistogram('hist-' + col, s); renderBoxPlot('box-' + col, s, col); }, 50);
+  }
+}
+function renderHistogram(id, s) {
+  const ctx = document.getElementById(id); if (!ctx) return;
+  charts[id] = new Chart(ctx, { type: 'bar', data: { labels: s.histogram.bin_edges.slice(0,-1).map((v,i) => v + '-' + s.histogram.bin_edges[i+1]), datasets: [{ data: s.histogram.counts, backgroundColor: 'rgba(96,165,250,0.6)', borderColor: '#2563eb', borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b', maxTicksLimit: 8, font: { size: 10 } }, grid: { color: '#1e293b' } }, y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } } } } });
+}
+function renderBoxPlot(id, s, label) {
+  const ctx = document.getElementById(id); if (!ctx) return;
+  const lower = s.q1 - 1.5 * s.iqr, upper = s.q3 + 1.5 * s.iqr;
+  const wMin = s.sorted.find(v => v >= lower) || s.min;
+  const wMax = [...s.sorted].reverse().find(v => v <= upper) || s.max;
+  charts[id] = new Chart(ctx, { type: 'bar', data: { labels: [label], datasets: [
+    { label: 'IQR box', data: [[s.q1, s.q3]], backgroundColor: 'rgba(96,165,250,0.4)', borderColor: '#2563eb', borderWidth: 2, borderSkipped: false },
+    { label: 'Median', data: [[s.median-0.001, s.median+0.001]], backgroundColor: '#f59e0b', borderColor: '#f59e0b', borderWidth: 3, borderSkipped: false },
+    { label: 'Whisker', data: [[wMin, wMax]], backgroundColor: 'rgba(100,116,139,0.2)', borderColor: '#64748b', borderWidth: 1, borderSkipped: false }
+  ]}, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } }, y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } } } } });
+}
+function renderCorr(data) {
+  const { matrix, columns } = data; const out = document.getElementById('corr-output');
+  let html = '<div class="card"><h2>Correlation Matrix</h2><div class="corr-table"><table><tr><th></th>';
+  columns.forEach(c => { html += '<th>' + c + '</th>'; }); html += '</tr>';
+  columns.forEach(r => {
+    html += '<tr><th style="text-align:left;color:#93c5fd">' + r + '</th>';
+    columns.forEach(c => {
+      const v = matrix[r][c], abs = Math.abs(v);
+      const bg = r===c ? '#1a1f2e' : abs>0.7 ? (v>0 ? '#0c3b2e' : '#3b0c0c') : abs>0.4 ? '#1e2d3b' : '#0f1117';
+      const color = r===c ? '#64748b' : abs>0.7 ? (v>0 ? '#4ade80' : '#f87171') : '#e2e8f0';
+      html += '<td style="background:' + bg + ';color:' + color + ';font-weight:' + (abs>0.7?'700':'400') + '">' + v.toFixed(3) + '</td>';
+    }); html += '</tr>';
+  }); html += '</table></div></div>'; out.innerHTML = html;
+}
+function destroyCharts() { for (const c of Object.values(charts)) c.destroy(); charts = {}; }
+function clearAll() {
+  document.getElementById('simple-input').value = '';
+  document.querySelectorAll('#col-inputs textarea').forEach(t => t.value = '');
+  document.getElementById('results').style.display = 'none'; destroyCharts();
+}
+const SAMPLES = {
+  normal: { tab: 'simple', data: '23.1, 25.4, 22.8, 26.7, 24.3, 23.9, 27.1, 21.5, 25.8, 24.0, 26.2, 22.3, 25.0, 23.7, 24.8, 26.5, 22.1, 25.3, 23.4, 24.6' },
+  skewed: { tab: 'simple', data: '1.2, 1.5, 1.1, 2.0, 1.8, 1.3, 3.4, 1.6, 1.4, 5.2, 1.7, 1.9, 1.2, 2.5, 1.3, 1.1, 8.7, 1.4, 1.6, 1.8' },
+  multi: { tab: 'multi', cols: [
+    { name: 'Height_cm', vals: '165, 172, 158, 180, 169, 175, 163, 177, 171, 168' },
+    { name: 'Weight_kg', vals: '62, 75, 54, 82, 68, 79, 60, 80, 70, 65' },
+    { name: 'Age', vals: '28, 35, 24, 42, 31, 38, 27, 40, 33, 29' }
+  ]}
+};
+function loadSample(key) {
+  const s = SAMPLES[key];
+  if (s.tab === 'simple') { switchTab('simple'); document.getElementById('simple-input').value = s.data; }
+  else { switchTab('multi'); document.getElementById('col-inputs').innerHTML = ''; colCount = 0; s.cols.forEach(c => addCol(c.name, c.vals)); }
+}
+</script>
+</body>
+</html>
